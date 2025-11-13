@@ -12,7 +12,7 @@
 set $mod Mod4
 
 exec --no-startup-id picom
-exec --no-startup-id feh --bg-scale ~/.config/dark_background.jpg
+exec --no-startup-id feh --bg-scale ~/.config/backgrounds/dark_background.jpg
 
 # Font for window titles. Will also be used by the bar unless a different font
 # is used in the bar {} block below.
