@@ -123,7 +123,7 @@ eval "$(uv generate-shell-completion zsh)"
 eval "$(uvx --generate-shell-completion zsh)"
 
 export UV_TORCH_BACKEND=auto
-export UV_LINK_MODE=copy
+# export UV_LINK_MODE=copy
 
 export EDITOR=nvim
 
