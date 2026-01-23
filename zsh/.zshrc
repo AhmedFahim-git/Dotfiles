@@ -109,6 +109,10 @@ source $ZSH/oh-my-zsh.sh
 # Example aliases
 # alias zshconfig="mate ~/.zshrc"
 # alias ohmyzsh="mate ~/.oh-my-zsh"
+alias ls="eza -a --icons --group-directories-first"
+alias ll='eza -al --icons --group-directories-first --git'
+alias lt='eza -a --tree --level=2 --icons'
+
 
 # Set up fzf key bindings and fuzzy completion
 source <(fzf --zsh)
