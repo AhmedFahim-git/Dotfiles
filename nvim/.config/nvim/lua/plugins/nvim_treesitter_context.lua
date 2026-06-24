@@ -4,7 +4,7 @@ return {
         require("treesitter-context").setup({
             multiline_threshold = 2,
         })
-        vim.keymap.set("n", "[c", function()
+        vim.keymap.set("n", "<leader>tc", function()
             require("treesitter-context").go_to_context(vim.v.count1)
         end, { silent = true })
     end,

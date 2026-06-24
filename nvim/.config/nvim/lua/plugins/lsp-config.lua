@@ -114,10 +114,7 @@ return {
                     --
                     -- When you move your cursor, the highlights will be cleared (the second autocommand).
                     local client = vim.lsp.get_client_by_id(event.data.client_id)
-                    if
-                        client
-                        and client:supports_method(vim.lsp.protocol.Methods.textDocument_documentHighlight, event.buf)
-                    then
+                    if client and client:supports_method("textDocument/documentHighlight", event.buf) then
                         local highlight_augroup =
                             vim.api.nvim_create_augroup("kickstart-lsp-highlight", { clear = false })
                         vim.api.nvim_create_autocmd({ "CursorHold", "CursorHoldI" }, {
@@ -145,9 +142,7 @@ return {
                     -- code, if the language server you are using supports them
                     --
                     -- This may be unwanted, since they displace some of your code
-                    if
-                        client and client:supports_method(vim.lsp.protocol.Methods.textDocument_inlayHint, event.buf)
-                    then
+                    if client and client:supports_method("textDocument/inlayHint", event.buf) then
                         map("<leader>th", function()
                             vim.lsp.inlay_hint.enable(not vim.lsp.inlay_hint.is_enabled({ bufnr = event.buf }))
                         end, "[T]oggle Inlay [H]ints")
@@ -155,48 +150,30 @@ return {
                 end,
             })
 
-            -- Diagnostic Config
-            -- See :help vim.diagnostic.Opts
-            vim.diagnostic.config({
-                severity_sort = true,
-                float = { border = "rounded", source = "if_many" },
-                underline = { severity = vim.diagnostic.severity.ERROR },
-                signs = {
-                    text = {
-                        [vim.diagnostic.severity.ERROR] = "󰅚 ",
-                        [vim.diagnostic.severity.WARN] = "󰀪 ",
-                        [vim.diagnostic.severity.INFO] = "󰋽 ",
-                        [vim.diagnostic.severity.HINT] = "󰌶 ",
-                    },
-                },
-                -- signs = vim.g.have_nerd_font and {
-                --     text = {
-                --         [vim.diagnostic.severity.ERROR] = "󰅚 ",
-                --         [vim.diagnostic.severity.WARN] = "󰀪 ",
-                --         [vim.diagnostic.severity.INFO] = "󰋽 ",
-                --         [vim.diagnostic.severity.HINT] = "󰌶 ",
-                --     },
-                -- } or {},
-                virtual_text = {
-                    source = "if_many",
-                    spacing = 2,
-                    format = function(diagnostic)
-                        local diagnostic_message = {
-                            [vim.diagnostic.severity.ERROR] = diagnostic.message,
-                            [vim.diagnostic.severity.WARN] = diagnostic.message,
-                            [vim.diagnostic.severity.INFO] = diagnostic.message,
-                            [vim.diagnostic.severity.HINT] = diagnostic.message,
-                        }
-                        return diagnostic_message[diagnostic.severity]
-                    end,
-                },
-            })
-
             -- LSP servers and clients are able to communicate to each other what features they support.
             --  By default, Neovim doesn't support everything that is in the LSP specification.
             --  When you add blink.cmp, luasnip, etc. Neovim now has *more* capabilities.
             --  So, we create new capabilities with blink.cmp, and then broadcast that to the servers.
             local capabilities = require("blink.cmp").get_lsp_capabilities()
+
+            -- Folding capability for Nvim-ufo
+            capabilities.textDocument.foldingRange = {
+                dynamicRegistration = false,
+                lineFoldingOnly = true,
+            }
+
+            local vue_language_server_path = vim.fn.stdpath("data")
+                .. "/mason/packages/vue-language-server/node_modules/@vue/language-server"
+            local tsserver_filetypes = { "typescript", "javascript", "javascriptreact", "typescriptreact", "vue" }
+            local vue_plugin = {
+                name = "@vue/typescript-plugin",
+                location = vue_language_server_path,
+                languages = { "vue" },
+                configNamespace = "typescript",
+            }
+            local html_capabilities = { textDocument = { completion = { completionItem = { snippetSupport = true } } } }
+            -- vim.lsp.protocol.make_client_capabilities()
+            -- html_capabilities.textDocument.completion.completionItem.snippetSupport = true
 
             -- Enable the following language servers
             --  Feel free to add/remove any LSPs that you want here. They will automatically be installed.
@@ -210,20 +187,32 @@ return {
             local servers = {
                 -- clangd = {},
                 -- gopls = {},
-                pyright = {
-                    settings = {
-                        pyright = {
-                            disableOrganizeImports = true,
-                        },
-                    },
-                    python = {
-                        analysis = {
-                            autoSearchPaths = true,
-                            useLibraryCodeForTypes = true,
-                            typeCheckingMode = "basic", -- or "strict" if you want
-                        },
-                    },
-                },
+                ty = {},
+                -- basedpyright = {
+                --     settings = {
+                --         basedpyright = {
+                --             disableOrganizeImports = true,
+                --             analysis = {
+                --                 typeCheckingMode = "basic", -- options are "off", "basic", "standard", "strict", "recommended", "all"
+                --                 useLibraryCodeForTypes = true,
+                --             },
+                --         },
+                --     },
+                -- },
+                -- pyright = {
+                --     settings = {
+                --         pyright = {
+                --             disableOrganizeImports = true,
+                --         },
+                --     },
+                --     python = {
+                --         analysis = {
+                --             autoSearchPaths = true,
+                --             useLibraryCodeForTypes = true,
+                --             typeCheckingMode = "basic", -- or "strict" if you want
+                --         },
+                --     },
+                -- },
                 ruff = {},
                 -- rust_analyzer = {},
                 -- ... etc. See `:help lspconfig-all` for a list of all the pre-configured LSPs
@@ -235,20 +224,39 @@ return {
                 -- ts_ls = {},
                 --
 
-                lua_ls = {
-                    -- cmd = { ... },
-                    -- filetypes = { ... },
-                    -- capabilities = {},
+                -- lua_ls = {
+                --     -- cmd = { ... },
+                --     -- filetypes = { ... },
+                --     -- capabilities = {},
+                --     settings = {
+                --         Lua = {
+                --             completion = {
+                --                 callSnippet = "Replace",
+                --             },
+                --             -- You can toggle below to ignore Lua_LS's noisy `missing-fields` warnings
+                --             -- diagnostics = { disable = { 'missing-fields' } },
+                --         },
+                --     },
+                -- },
+                vtsls = {
                     settings = {
-                        Lua = {
-                            completion = {
-                                callSnippet = "Replace",
+                        vtsls = {
+                            autoUseWorkspaceTsdk = true,
+                            tsserver = {
+                                globalPlugins = {
+                                    vue_plugin,
+                                },
                             },
-                            -- You can toggle below to ignore Lua_LS's noisy `missing-fields` warnings
-                            -- diagnostics = { disable = { 'missing-fields' } },
                         },
                     },
+                    filetypes = tsserver_filetypes,
                 },
+                vue_ls = {},
+                biome = {},
+                emmet_language_server = {},
+                clangd = {},
+                taplo = {},
+                gopls = {},
             }
 
             -- Ensure the servers and tools above are installed
@@ -267,23 +275,106 @@ return {
             local ensure_installed = vim.tbl_keys(servers or {})
             vim.list_extend(ensure_installed, {
                 "stylua", -- Used to format Lua code
+                "prettier",
+                "debugpy",
+                "lua_ls",
+                "html-lsp",
+                "css-lsp",
+                "clang-format",
+                "cmakelang",
+                "markdownlint",
+                "yamllint",
+                "yaml-language-server",
+                "bash-language-server",
+                "shellcheck",
+                "shfmt",
+                "docker-language-server",
+                "golangci-lint",
+                "goimports",
+                "gofumpt",
+                "rust-analyzer",
             })
-            require("mason-tool-installer").setup({ ensure_installed = ensure_installed })
+            require("mason-tool-installer").setup({ ensure_installed = ensure_installed, auto_update = true })
 
-            require("mason-lspconfig").setup({
-                ensure_installed = {}, -- explicitly set to an empty table (Kickstart populates installs via mason-tool-installer)
-                automatic_installation = false,
-                handlers = {
-                    function(server_name)
-                        local server = servers[server_name] or {}
-                        -- This handles overriding only values explicitly passed
-                        -- by the server configuration above. Useful when disabling
-                        -- certain features of an LSP (for example, turning off formatting for ts_ls)
-                        server.capabilities = vim.tbl_deep_extend("force", {}, capabilities, server.capabilities or {})
-                        require("lspconfig")[server_name].setup(server)
-                    end,
+            local extra_servers = {
+                html = { capabilities = html_capabilities },
+                cssls = { capabilities = html_capabilities },
+                yamlls = {},
+                bashls = {},
+                docker_language_server = {},
+                rust_analyzer = {
+                    settings = {
+                        ["rust-analyzer"] = {
+                            cargo = {
+                                allFeatures = true,
+                            },
+                            checkOnSave = true,
+                            check = {
+                                command = "clippy",
+                            },
+                            procMacro = {
+                                enable = true,
+                            },
+                        },
+                    },
+                },
+            }
+            servers = vim.tbl_deep_extend("error", {}, servers, extra_servers)
+
+            for name, server in pairs(servers) do
+                server.capabilities = vim.tbl_deep_extend("force", {}, capabilities, server.capabilities or {})
+                vim.lsp.config(name, server)
+                vim.lsp.enable(name)
+            end
+
+            -- Special Lua Config, as recommended by neovim help docs
+            vim.lsp.config("lua_ls", {
+                on_init = function(client)
+                    if client.workspace_folders then
+                        local path = client.workspace_folders[1].name
+                        if
+                            path ~= vim.fn.stdpath("config")
+                            and (vim.uv.fs_stat(path .. "/.luarc.json") or vim.uv.fs_stat(path .. "/.luarc.jsonc"))
+                        then
+                            return
+                        end
+                    end
+
+                    client.config.settings.Lua = vim.tbl_deep_extend("force", client.config.settings.Lua, {
+                        runtime = {
+                            version = "LuaJIT",
+                            path = { "lua/?.lua", "lua/?/init.lua" },
+                        },
+                        workspace = {
+                            checkThirdParty = false,
+                            -- NOTE: this is a lot slower and will cause issues when working on your own configuration.
+                            --  See https://github.com/neovim/nvim-lspconfig/issues/3189
+                            library = vim.api.nvim_get_runtime_file("", true),
+                        },
+                    })
+                end,
+                settings = {
+                    Lua = {},
                 },
             })
+            vim.lsp.enable("lua_ls")
+
+            -- require("mason-lspconfig").setup({
+            --     ensure_installed = {}, -- explicitly set to an empty table (Kickstart populates installs via mason-tool-installer)
+            --     automatic_installation = false,
+            --     handlers = {
+            --         function(server_name)
+            --             local server = servers[server_name] or {}
+            --             -- This handles overriding only values explicitly passed
+            --             -- by the server configuration above. Useful when disabling
+            --             -- certain features of an LSP (for example, turning off formatting for ts_ls)
+            --             server.capabilities = vim.tbl_deep_extend("force", {}, capabilities, server.capabilities or {})
+            --             -- require("lspconfig")[server_name].setup(server)
+            --             vim.lsp.config(server_name, server)
+            --             vim.lsp.enable(server_name)
+            --         end,
+            --     },
+            -- })
 
             vim.api.nvim_create_autocmd("LspAttach", {
                 group = vim.api.nvim_create_augroup("lsp_attach_disable_ruff_hover", { clear = true }),
@@ -298,6 +389,31 @@ return {
                     end
                 end,
                 desc = "LSP: Disable hover capability from Ruff",
+            })
+        end,
+    },
+    { -- Linting (those that do not have lsp as well)
+        "mfussenegger/nvim-lint",
+        event = { "BufReadPre", "BufNewFile" },
+        config = function()
+            local lint = require("lint")
+
+            -- Associate linters with filetypes
+            lint.linters_by_ft = {
+                cpp = { "clang-tidy", "cppcheck" },
+                c = { "clang-tidy", "cppcheck" },
+                cmake = { "cmake-lint" },
+                markdown = { "markdownlint" },
+                yaml = { "yamllint" },
+                sh = { "shellcheck" },
+                bash = { "shellcheck" },
+                go = { "golangcilint" },
+            }
+            -- Auto-run linting
+            vim.api.nvim_create_autocmd({ "BufEnter", "BufWritePost", "InsertLeave" }, {
+                callback = function()
+                    lint.try_lint()
+                end,
             })
         end,
     },
@@ -322,7 +438,7 @@ return {
                 -- Disable "format_on_save lsp_fallback" for languages that don't
                 -- have a well standardized coding style. You can add additional
                 -- languages here or re-enable it for the disabled ones.
-                local disable_filetypes = { c = true, cpp = true }
+                local disable_filetypes = {}
                 if disable_filetypes[vim.bo[bufnr].filetype] then
                     return nil
                 else
@@ -345,8 +461,26 @@ return {
                 },
                 --
                 -- You can use 'stop_after_first' to run the first available formatter from the list
-                -- javascript = { "prettierd", "prettier", stop_after_first = true },
+                -- javascript = { "biome", "prettierd", "prettier", stop_after_first = true },
+                c = { "clang-format" },
+                cpp = { "clang-format" },
+                cmake = { "cmake_format" },
+                javascript = { "biome-check" },
+                javascriptreact = { "biome-check" },
+                typescript = { "biome-check" },
+                typescriptreact = { "biome-check" },
+                json = { "biome-check" },
+                jsonc = { "biome-check" },
+                css = { "biome-check" },
+                html = { "prettier" },
+                markdown = { "prettier" },
+                yaml = { "prettier" },
+                sh = { "shfmt" },
+                bash = { "shfmt" },
+                go = { "goimports", "gofumpt" },
+                rust = { "rustfmt" },
             },
+            -- Overriding default values of formatters (customizing formatters)
             formatters = {
                 stylua = {
                     prepend_args = { "--indent-type=Spaces" },
@@ -377,16 +511,17 @@ return {
                     -- `friendly-snippets` contains a variety of premade snippets.
                     --    See the README about individual language/framework/plugin snippets:
                     --    https://github.com/rafamadriz/friendly-snippets
-                    -- {
-                    --   'rafamadriz/friendly-snippets',
-                    --   config = function()
-                    --     require('luasnip.loaders.from_vscode').lazy_load()
-                    --   end,
-                    -- },
+                    {
+                        "rafamadriz/friendly-snippets",
+                        config = function()
+                            require("luasnip.loaders.from_vscode").lazy_load()
+                        end,
+                    },
                 },
                 opts = {},
             },
             "folke/lazydev.nvim",
+            "saghen/blink.lib",
         },
         --- @module 'blink.cmp'
         --- @type blink.cmp.Config
@@ -447,10 +582,98 @@ return {
             -- the rust implementation via `'prefer_rust_with_warning'`
             --
             -- See :h blink-cmp-config-fuzzy for more information
-            fuzzy = { implementation = "lua" },
+            fuzzy = { implementation = "prefer_rust_with_warning" },
 
             -- Shows a signature help window while you type arguments for a function
             signature = { enabled = true },
         },
+    },
+    { -- DAP (debugging)
+        "mfussenegger/nvim-dap",
+        dependencies = {
+            "mfussenegger/nvim-dap-python",
+            "rcarriga/nvim-dap-ui",
+            "theHamsta/nvim-dap-virtual-text",
+            "nvim-neotest/nvim-nio",
+        },
+        config = function()
+            local dap = require("dap")
+            local dapui = require("dapui")
+
+            dapui.setup()
+            require("dap-python").setup("uv")
+
+            require("nvim-dap-virtual-text").setup({
+                -- This just tries to mitigate the chance that I leak tokens here. Probably won't stop it from happening...
+                display_callback = function(variable)
+                    if #variable.value > 15 then
+                        return " " .. string.sub(variable.value, 1, 15) .. "... "
+                    end
+
+                    return " " .. variable.value
+                end,
+            })
+
+            -- Basic debugging keymaps, feel free to change to your liking!
+            vim.keymap.set("n", "<leader>dc", dap.continue, { desc = "Debug: Start/Continue" })
+            vim.keymap.set("n", "<leader>di", dap.step_into, { desc = "Debug: Step Into" })
+            vim.keymap.set("n", "<leader>do", dap.step_over, { desc = "Debug: Step Over" })
+            vim.keymap.set("n", "<leader>dO", dap.step_out, { desc = "Debug: Step Out" })
+            vim.keymap.set("n", "<leader>dk", dap.step_back, { desc = "Debug: Step Back" })
+            vim.keymap.set("n", "<leader>dR", dap.restart, { desc = "Debug: Restart" })
+
+            -- Breakpoints
+            vim.keymap.set("n", "<leader>db", dap.toggle_breakpoint, { desc = "Debug: Toggle Breakpoint" })
+            vim.keymap.set("n", "<leader>dB", function()
+                dap.set_breakpoint(vim.fn.input("Breakpoint condition: "))
+            end, { desc = "Debug: Set Breakpoint" })
+
+            -- Toggle to see last session result. Without this, you can't see session output in case of unhandled exception.
+            vim.keymap.set("n", "<leader>du", function()
+                dapui.toggle()
+            end, { desc = "Debug: See last session result." })
+
+            -- Eval var under cursor
+            vim.keymap.set("n", "<leader>de", function()
+                require("dapui").eval(nil, { enter = true })
+            end, { desc = "Debug: Eval" })
+
+            -- Change breakpoint icons
+            vim.api.nvim_set_hl(0, "DapBreak", { fg = "#e51400" })
+            vim.api.nvim_set_hl(0, "DapStop", { fg = "#ffcc00" })
+            local breakpoint_icons = vim.g.have_nerd_font
+                    and {
+                        Breakpoint = "",
+                        BreakpointCondition = "",
+                        BreakpointRejected = "",
+                        LogPoint = "",
+                        Stopped = "",
+                    }
+                or {
+                    Breakpoint = "●",
+                    BreakpointCondition = "⊜",
+                    BreakpointRejected = "⊘",
+                    LogPoint = "◆",
+                    Stopped = "⭔",
+                }
+            for type, icon in pairs(breakpoint_icons) do
+                local tp = "Dap" .. type
+                local hl = (type == "Stopped") and "DapStop" or "DapBreak"
+                vim.fn.sign_define(tp, { text = icon, texthl = hl, numhl = hl })
+            end
+
+            dap.listeners.before.attach.dapui_config = function()
+                dapui.open()
+            end
+            dap.listeners.before.launch.dapui_config = function()
+                dapui.open()
+            end
+            dap.listeners.before.event_terminated.dapui_config = function()
+                dapui.close()
+            end
+            dap.listeners.before.event_exited.dapui_config = function()
+                dapui.close()
+            end
+        end,
     },
 }
