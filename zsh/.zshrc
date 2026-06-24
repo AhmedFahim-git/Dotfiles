@@ -123,6 +123,7 @@ source <(fzf --zsh)
 eval "$(zoxide init zsh)"
 
 . "$HOME/.local/bin/env"
+
 eval "$(uv generate-shell-completion zsh)"
 eval "$(uvx --generate-shell-completion zsh)"
 
@@ -140,3 +141,5 @@ function y() {
 	[ -n "$cwd" ] && [ "$cwd" != "$PWD" ] && builtin cd -- "$cwd"
 	rm -f -- "$tmp"
 }
+
+source <(COMPLETE=zsh jj)
